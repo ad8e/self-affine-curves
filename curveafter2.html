@@ -1,0 +1,336 @@
+</main>
+{{{ SCRIPT }}}
+<script src='g9.js'></script>
+<!-- the below license is for G9. their own distribution doesn't include this license, so I guess I put it here!
+
+MIT License
+
+Copyright (c) 2016
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.-->
+
+<script>
+	/* nodes can have changed cursors when mousing over, but they lag behind when dragging. so the cursor flickers and doesn't look good */
+
+	function tween_pair(a, b, r) { return [a[0] + r * (b[0] - a[0]), a[1] + r * (b[1] - a[1])]; }
+	function tween(a, b, r) { return a + r * (b - a); }
+	function scalar(a, b) { return [a * b[0], a * b[1]]; }
+	function sub(p0, p1) { return [p0[0] - p1[0], p0[1] - p1[1]]; }
+	function add(p0, p1) { return [p0[0] + p1[0], p0[1] + p1[1]]; }
+
+	function harmonic_size(obj) { return 2 / (1 / obj.height + 1 / obj.width); } //2.3 causes mis-taps to go back/forward
+
+	function divide(x, y) {
+		let a = x[0], b = x[1], c = y[0], d = y[1];
+		let sq = c * c + d * d;
+		return [(a * c + b * d) / sq, (b * c - a * d) / sq];
+	}
+	function cross_product(a, b) {
+		return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+	}
+	function distance(a) {
+		return Math.sqrt(a[0] * a[0] + a[1] * a[1]);
+	}
+
+
+	function bezier_steps(p0, p1, p2, p3) {
+		let steps = 100
+		let smooth = []
+
+		for (let i = 0; i <= steps; i++) {
+			let r = i / steps;
+			let q0 = tween_pair(p0, p1, r),
+				q1 = tween_pair(p1, p2, r),
+				q2 = tween_pair(p2, p3, r);
+			let r0 = tween_pair(q0, q1, r),
+				r1 = tween_pair(q1, q2, r);
+			let point = tween_pair(r0, r1, r);
+
+			smooth.push(point);
+		}
+		return smooth;
+	}
+
+	//8 is annoying to click on mobile. changed to 5 and 10. then 10 looks ugly, so increased interior.
+	function draw_hollow_square(ctx, point, color = 'blue') {
+		ctx.rect(point[0] - 10, point[1] - 10, 20, 20, { fill: color });
+		ctx.rect(point[0] - 6, point[1] - 6, 12, 12, { fill: 'white' });
+	}
+	function draw_hollow_circle(ctx, point, color = 'blue', affects = 0) {
+		if (affects !== 0) {
+			ctx.point(point[0], point[1], { r: 10, fill: color, 'affects': affects });
+			ctx.point(point[0], point[1], { r: 6, fill: 'white', 'affects': affects })
+		}
+		else {
+			ctx.point(point[0], point[1], { r: 10, fill: color });
+			ctx.point(point[0], point[1], { r: 6, fill: 'white' });
+		}
+	}
+
+	function plot_vector(ctx, points, color = 'black', width = 6) {
+		for (let i = 1; i < points.length; i++)
+			ctx.line(points[i - 1][0], points[i - 1][1], points[i][0], points[i][1], { 'stroke-width': width, 'stroke-linecap': 'round', 'stroke': color });
+	}
+	function plot_vector_no_drag(ctx, points, color = 'black', width = 6) {
+		for (let i = 1; i < points.length; i++)
+			ctx.line(points[i - 1][0], points[i - 1][1], points[i][0], points[i][1], { 'stroke-width': width, 'stroke-linecap': 'round', 'stroke': color, 'affects': [] });
+	}
+
+
+	function plot_curvature_comb(ctx, points, size, color = 'green', width = 1) {
+		for (let i = 1; i < points.length - 1; i++) {
+			let point = points[i];
+			let first_derivative = sub(points[i + 1], points[i - 1]); //missing constants, but we don't care
+			let second_derivative = sub(sub(points[i], points[i - 1]), sub(points[i + 1], points[i])); //missing constants, but we don't care
+
+			//convert to unit speed
+			second_derivative = scalar(1 / distance(first_derivative) ** 2, second_derivative);
+			first_derivative = scalar(1 / distance(first_derivative), first_derivative);
+
+			let dot_product = second_derivative[0] * first_derivative[0] + second_derivative[1] * first_derivative[1];
+			let projection_along_line = scalar(dot_product, first_derivative);
+			let curvature = scalar(1000 * size, sub(second_derivative, projection_along_line));
+			//console.log(second_derivative, first_derivative, dot_product, projection_along_line, curvature);
+			ctx.line(point[0], point[1], point[0] + curvature[0], point[1] + curvature[1], { 'stroke-width': width, 'stroke-linecap': 'round', 'stroke': color, 'affects': [] });
+		}
+	}
+
+	function plot_vector_combo(ctx, p0, p1, p2, p3, color = 'black', width = 6) {
+		plot_vector(ctx, bezier_steps(p0, p1, p2, p3), color, width);
+	}
+
+
+	function complex_exp(angle) {
+		return [Math.cos(angle), Math.sin(angle)];
+	}
+	function mult(a, b) {
+		return [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]];
+	}
+
+
+	let final1_data = {
+		c0: 2,
+		c1: 1.2
+	}
+
+	function get_curve(size) {
+		let steps = 100
+		let result = [];
+
+		for (let i = 0; i <= steps; i++) {
+			let r = i / steps;
+			let x = Module._get_x(r);
+			let y = Module._get_also_y();
+			result.push([-size + x * 2 * size, size - y * 2 * size]);
+		}
+		return result;
+	}
+
+	function get_curve_and_plot_it(ctx, size) {
+		let steps = 100
+		let points = [];
+
+		for (let i = 0; i <= steps; i++) {
+			let r = i / steps;
+			let x = Module._get_x(r);
+			let y = Module._get_also_y();
+			points.push([-size + x * 2 * size, size - y * 2 * size]);
+		}
+		ctx.pure(plot_curvature_comb)(ctx, points, size);
+		ctx.pure(plot_vector_no_drag)(ctx, points);
+	}
+
+
+	function final1(data, ctx) {
+		let size = harmonic_size(ctx);
+		let p0 = scalar(size, [-0.3, 0.3]),
+			p1 = scalar(size, [0.3, -0.3]);
+		let c0 = Math.min(Math.max(0.01, data.c0), 50); //hopefully won't be necessary in the future
+		let c1 = Math.min(Math.max(0.01, data.c1), 50);
+		//let c0 = data.c0;
+		//let c1 = data.c1;
+
+		ctx.pure(Module._solve_problem)(c0, c1);
+		ctx.pure(get_curve_and_plot_it)(ctx, size * 0.3);
+
+		let curvature_size = size / 3;
+
+		ctx.line(p0[0], p0[1], p0[0], p0[1] + curvature_size * c0, { 'stroke-width': 4, 'stroke': 'blue' });
+		ctx.line(p1[0], p1[1], p1[0] + curvature_size * c1, p1[1], { 'stroke-width': 4, 'stroke': 'blue' });
+		draw_hollow_circle(ctx, [p0[0], p0[1] + curvature_size * c0]);
+		draw_hollow_circle(ctx, [p1[0] + curvature_size * c1, p1[1]]);
+	}
+
+	//addEventListener("load", (event)=> g9(final1_data, final1).insertInto('#new-curve-playground'));
+
+
+
+	let final2_data = {
+		c0: 2,
+		c1: 1.2
+	}
+	function final2(data, ctx) {
+		let size = harmonic_size(ctx);
+		let p0 = scalar(size, [-0.3, 0.3]),
+			p1 = scalar(size, [0.3, -0.3]);
+		//let c0 = Math.min(Math.max(0.02, data.c0), 50); //hopefully won't be necessary in the future
+		//let c1 = Math.min(Math.max(0.02, data.c1), 50);
+		let c0 = data.c0;
+		let c1 = data.c1;
+
+		ctx.pure(Module._set_m_and_r_directly)(c0, c1);
+		ctx.pure(get_curve_and_plot_it)(ctx, size * 0.3);
+
+		let curvature_size = size / 15;
+
+		ctx.line(0, 0, -  curvature_size * c0, curvature_size * c0, { 'stroke-width': 4, 'stroke': 'blue' });
+		ctx.line(0, 0, curvature_size * c1,  curvature_size * c1, { 'stroke-width': 4, 'stroke': 'blue' });
+		draw_hollow_circle(ctx, [-  curvature_size * c0, curvature_size * c0]);
+		draw_hollow_circle(ctx, [curvature_size * c1,  curvature_size * c1]);
+	}
+
+
+
+	//let final2_data = {
+	//		p0x: -100,
+	//		p0y: -100,
+	//		exp_scale: 1,
+	//		exp_angle: 3,
+	//	};
+
+
+	//function final2(data, ctx) {
+	//	let p0 = [data.p0x, data.p0y];
+	//	let p1 = [data.p1x, data.p1y];
+
+	//	let complex_sign = Math.sin(exp_angle);
+	//	let m = Math.exp(exp_scale) * Math.cos(exp_angle);
+	//	let n = Math.exp(exp_scale) * complex_sign;
+
+	//	if (complex_sign < 0) { //complex case
+	//		//(a+ib) E^((m+nI) t) + (a-ib) E^((m-nI)t)
+	//		let log_lambda1 = m + n;
+	//		let log_lambda2 = m - n;
+
+	//	}
+	//	else {
+	//		//real case
+	//		//(a+b) E^((m+n) t) + (a-b) E^((m-n)t)
+	//	}
+
+	//	let intersection = [data.i0x, data.i0y];
+	//	let f0 = distance(sub(intersection, p0));
+	//	let f1 = distance(sub(intersection, p1));
+	//	//let weight_mag = Math.max(Math.min(data.weight_mag, 6), 0.0); //bound the weight. low bound seems necessary for preventing singularities in the optimizer
+	//	let weight_mag = data.weight_mag;
+	//	let d_angle0 = data.d_angle0,
+	//		d_angle1 = data.d_angle1;
+
+
+	//	let d_abs0 = sub(intersection, p0);
+	//	let d_abs1 = sub(intersection, p1);
+	//	let r = d_angle0 - Math.atan2(d_abs0[1], d_abs0[0]);
+	//	let v = d_angle1 - Math.atan2(d_abs1[1], d_abs1[0]);
+
+	//	let w0 = scalar(weight_mag, complex_exp(r));
+	//	let w1 = complex_exp(r - v);
+
+	//	let s = scalar(weight_mag, complex_exp(r));
+	//	let t = scalar(weight_mag, complex_exp(v));
+	//	//let second_half = mult(mult(scalar(2 * 2, s), sub(scalar(2, s), [1, 0])), sub(p0, intersection));
+	//	//let second_derivative0 = add(scalar(2, mult(sub(p1, p0), complex_exp(r - v))), second_half);
+
+	//	let derived_curvature0 = curvature_from_data(p0, intersection, p1, s, t, weight_mag);
+	//	let derived_curvature1 = curvature_from_data(p1, intersection, p0, t, s, weight_mag);
+
+	//	ctx.point(derived_curvature0, derived_curvature1, {r:0}); //for use in "desire"
+
+	//	//first derivative is 2s(b-a)
+	//	//let first_derivative0 = mult(scalar(2, s), sub(intersection, p0));
+
+	//	//let d_abs1 = sub(intersection, p1);
+	//	//let d_angle1 = Math.atan2(d_abs1[1], d_abs1[0]) + data.v;
+	//	//let curvature1 = curvature_from_data(weight_mag, v, r, f1, f0, d_angle1, sub(p0, p1));
+
+	//	let points = rational_quadratic_bezier_steps_complex(p0, intersection, w0, p1, w1);
+	//	plot_vector(ctx, points);
+	//	plot_vector(ctx, rational_quadratic_bezier_steps_complex(p0, intersection, [-w0[0], -w0[1]], p1, w1), 'green');
+
+	//	ctx.line(p0[0], p0[1], intersection[0], intersection[1], { 'stroke-width': 4, 'stroke': 'blue', affects: [] });
+	//	ctx.line(p1[0], p1[1], intersection[0], intersection[1], { 'stroke-width': 4, 'stroke': 'blue', affects: [] });
+	//	draw_hollow_circle(ctx, intersection);
+	//	draw_hollow_square(ctx, p0, "purple");
+	//	draw_hollow_square(ctx, p1, 'blue');
+
+	//	ctx.line(-300, 150, -200, 150, { 'stroke-width': 4, 'stroke': 'green' });
+	//	draw_hollow_circle(ctx, [100 * (weight_mag - 3), 150], 'black');
+
+	//	//ctx.point(angle_s_point[0], angle_s_point[1], { r: 8, fill: 'purple', affects: ['i0x', 'i0y', 'weight_mag', 'd_angle0']});
+	//	//ctx.line(p0[0], p0[1], angle_s_point[0], angle_s_point[1], { 'stroke-width': 4, 'stroke': 'purple', affects: ['i0x', 'i0y', 'weight_mag', 'd_angle0'] });
+
+	//	//use radius instead of curvature as the input. curvature doesn't flip over 0, and the optimizer gets stuck because of the 1/val
+	//	//let angle_s_point = add(p0, scalar(data.radius0, complex_exp(Math.PI / 2 + d_angle0)));
+	//	//let direction_point0 = add(p0, scalar(100, complex_exp(d_angle0)));
+	//	//ctx.line(p0[0], p0[1], direction_point0[0], direction_point0[1], { 'stroke-width': 4, 'stroke': 'purple', affects: ['d_angle0'] });
+	//	//ctx.point(angle_s_point[0], angle_s_point[1], { r: 8, fill: 'purple', affects: ['radius0'] }); //, 'weight_mag'
+
+	//	//let angle_t_point = add(p1, scalar(-data.radius1, complex_exp(Math.PI / 2 + d_angle1)));
+	//	//let direction_point1 = add(p1, scalar(100, complex_exp(d_angle1)));
+	//	//ctx.line(p1[0], p1[1], direction_point1[0], direction_point1[1], { 'stroke-width': 4, 'stroke': 'blue', affects: ['d_angle1'] });
+	//	//ctx.point(angle_t_point[0], angle_t_point[1], { r: 8, fill: 'blue', affects: ['radius1'] }); //, 'weight_mag'
+
+	//	let handle_point0 = add(p0, scalar(data.radius0, complex_exp(d_angle0)));
+	//	ctx.line(p0[0], p0[1], handle_point0[0], handle_point0[1], { 'stroke-width': 4, 'stroke': 'purple', affects: ['d_angle0', 'radius0'] });
+	//	ctx.point(handle_point0[0], handle_point0[1], { r: 8, fill: 'purple', affects: ['d_angle0', 'radius0'] });
+
+	//	let handle_point1 = add(p1, scalar(data.radius1, complex_exp(d_angle1)));
+	//	ctx.line(p1[0], p1[1], handle_point1[0], handle_point1[1], { 'stroke-width': 4, 'stroke': 'purple', affects: ['d_angle1', 'radius1'] });
+	//	ctx.point(handle_point1[0], handle_point1[1], { r: 8, fill: 'purple', affects: ['d_angle1', 'radius1'] });
+
+
+	//	//ctx.line(p0[0], p0[1], p0[0] + second_derivative0[0], p0[1] + second_derivative0[1], { 'stroke-width': 4, 'stroke': 'lightgreen',  affects: [] });
+	//	//ctx.line(p0[0], p0[1], p0[0] + first_derivative0[0], p0[1] + first_derivative0[1], { 'stroke-width': 4, 'stroke': 'red',  affects: [] });
+	//	//let manual_deriv1 = scalar(100, sub(points[1], points[0]));
+	//	//let manual_deriv2 = scalar(10000, sub(sub(points[2], points[1]), sub(points[1], points[0])));
+	//	//ctx.line(p0[0], p0[1], p0[0] + manual_deriv2[0], p0[1] + manual_deriv2[1], { 'stroke-width': 4, 'stroke': 'green',  affects: [] });
+	//	//ctx.line(p0[0], p0[1], p0[0] + manual_deriv1[0], p0[1] + manual_deriv1[1], { 'stroke-width': 4, 'stroke': 'red',  affects: [] });
+
+	//	//draw_hollow_circle(ctx, points[1], 'blue');
+
+	//	//draw_hollow_circle(ctx, [100 * Math.cos(data.v), 100 * Math.sin(data.v)], 'blue');
+	//}
+
+	//let f2 = g9(final2_data, final2, clamp_curvature).insertInto('#new-curve-playground2');
+	////let f2 = g9(final2_data, final2).insertInto('#new-curve-playground2');
+	//f2.node.style.height = '300px';
+	//f2.resize();
+	//f2_initialized = true;
+
+
+
+
+
+
+
+
+
+</script>
+</body>
+
+</html>

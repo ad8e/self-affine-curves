@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang='en-US'>
+<meta charset='utf-8'>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Mathematical insights create a more intuitive UI for Bezier curves.">
+<meta property="og:url" content="https://ad8e.pages.dev/curve"/>
+<meta property="og:title" content="New Bezier curves for vector graphics"/>
+<meta property="og:description" content="Mathematical insights create a more intuitive UI for Bezier curves."/>
+<meta property="og:image" content="https://ad8e.pages.dev/curve.png"/>
+<title>New Bezier curves for vector graphics</title>
+<style>
+	body {
+		font-family: Inter, -apple-system, BlinkMacSystemFont, avenir next, avenir, "Segoe UI", "Noto Sans", helvetica neue, roboto, noto, sans-serif;
+		overflow-x: hidden; /* necessary on Firefox: clicking inside the input box causes a huge horizontal scrollbar, probably because the keyboard's transform falls apart. also necessary on chrome: 100 vw doesn't consider the scrollbar */
+	}
+
+	main {
+		margin-left: auto;
+		margin-right: auto;
+		max-width: min(800px, 100%);
+	}
+
+	svg {
+		overflow: visible;
+		height: 300px;
+		width:100%;
+		max-width: 100%; /* necessary for iOS safari */
+		max-height: 100%;
+	}
+
+	.svg-border {
+		/*//this is an internal border, apparently. it scrunches the interior svg element
+		border: 1px solid lightgray*/
+		/*height: 250px;*/
+		text-align: center;
+	}
+
+	/* hover effect for mouse only. https://stackoverflow.com/questions/23885255/how-to-remove-ignore-hover-css-style-on-touch-devices */
+	@media (pointer: fine) {
+		.keyg:hover,
+		.keyp:hover {
+			background-color: #fff;
+		}
+	}
+</style>
+
+<body>
+	<main id='main'>
