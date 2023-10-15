@@ -47,12 +47,6 @@ EMSCRIPTEN_KEEPALIVE void solve_problem(double curvature1, double curvature2) {
 	solution[0] = x[0];
 	solution[1] = x[1];
 
-	//double r = solution[1] * solution[1] + solution[2] * solution[3];
-
-	//outc(solution[0], solution[1], "final cost", solver.summary.final_cost);
-
-	//outc("results:", x[0], x[1]);
-
 	auto [a, b, p, q, mode] = decompress(solution[0], solution[1]);
 	verify_correctness(a, b, p, q, mode);
 	outc("coef", a, b, "exp", p, q, mode);
