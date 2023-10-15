@@ -1,6 +1,6 @@
+#include "console.h"
 #include "tiny_curve2.h"
 #include <emscripten.h>
-#include "console.h"
 
 //cd /home/a/stuff/2dcurve/curvesolver/build/
 //emcmake cmake -DCMAKE_BUILD_TYPE=Release -DCeres_DIR="/usr/lib/x86_64-linux-gnu/cmake/Ceres/" ../
@@ -32,14 +32,15 @@ extern "C" {
 
 //solves the problem when in standard form: points at (0, 0), (1, 0), (1, 1)
 EMSCRIPTEN_KEEPALIVE void solve_problem(double curvature1, double curvature2) {
- 	MyFunctor my_functor{curvature1, curvature2}; //some state is being kept, but I don't know which. let's just reset it.
+	MyFunctor my_functor{curvature1, curvature2}; //some state is being kept, but I don't know which. let's just reset it.
 	AutoDiffFunction f(my_functor);
 
 	//Eigen::Vector2d x(solution);
-	Eigen::Vector2d x(0, -pi/2);
-	if (curvature1 < 0.5 && curvature2 > 0.5 ||curvature1 > 0.5 && curvature2 < 0.5)
+	Eigen::Vector2d x(0, -pi / 2);
+	if (curvature1 < 0.5 && curvature2 > 0.5 || curvature1 > 0.5 && curvature2 < 0.5) {
 		//x = {pi / 2, pi / 2};
 		x = {0, -5 * pi / 2};
+	}
 	TinySolver<AutoDiffFunction> solver;
 	solver.options.max_num_iterations *= 10; //50 is too small. gets stuck. corresponding to summary.status == 3
 	solver.Solve(f, &x);
@@ -55,16 +56,8 @@ EMSCRIPTEN_KEEPALIVE void solve_problem(double curvature1, double curvature2) {
 	auto [a, b, p, q, mode] = decompress(solution[0], solution[1]);
 	verify_correctness(a, b, p, q, mode);
 	outc("coef", a, b, "exp", p, q, mode);
-	outc("curvatures", curvature1, curvature2, "cost:", solver.summary.final_cost, "iterations", solver.summary.iterations, "status code", int(solver.summary.status)); //solver.summary.gradient_max_norm
-	//	{
-	//		auto [a, b, o, k] = calc_derive_coefficients_from_curvature(x[0], x[1], c1, c2);
-	//		//outc("old curvatures", c1, c2, "new curvatures", curvature_from_coefficients<double>(x[0], x[1], a, b, o, k));
-	//		//curvature_from_diffeq_solution(x[0], x[1], c1, c2);
-	//
-	//	}
-	//outc("closeness to endpoint:", calc_derive_from_curvature<double>(x[0],x[1], c1,c2, 1));
+	outc("curvatures", curvature1, curvature2, "cost:", solver.summary.final_cost, "iterations", solver.summary.iterations, "status code", int(solver.summary.status));
 }
-
 
 EMSCRIPTEN_KEEPALIVE void set_m_and_r_directly(double m, double r) {
 	solution[0] = m;
