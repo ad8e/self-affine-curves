@@ -1,8 +1,8 @@
 #include "console.h"
 #include <ceres/tiny_solver.h>
 #include <ceres/tiny_solver_autodiff_function.h>
-#include <utility>
 #include <numbers>
+#include <utility>
 
 #if !_EMSCRIPTEN
 #define EMSCRIPTEN_KEEPALIVE
@@ -100,29 +100,29 @@ std::tuple<Matrix<T, 2, 1>, Matrix<T, 2, 1>, T, T, int> decompress(const T& m, c
 
 	//todo: when is this reasonable?
 	//todo: it's missing a mode. c + a t + b e^t
-//	if (abs(10000. * r) < abs(m) || abs(r) < zero_threshold) {
-//		if (abs(m) >= zero_threshold) {
-//			mode = 2;
-//			p = m;
-//			q = T(0.);
-//			//-a + e^(p t)(a + b t)
-//			a[0] = -(1. + p) / (1. - exp(p) + p);
-//			b[0] = -p / (-1. + exp(p) - p);
-//			a[1] = -2. / (2. - 2. * exp(p) + exp(p) * p);
-//			b[1] = p / (2. - 2. * exp(p) + exp(p) * p);
-//		}
-//		else {
-//			mode = 3;
-//			p = T(0.);
-//			q = T(0.);
-//			//a t + b t^2
-//			a[0] = T(2.);
-//			b[0] = T(-1.);
-//			a[1] = T(0.);
-//			b[1] = T(1.);
-//		}
-//	}
-//	else
+	//	if (abs(10000. * r) < abs(m) || abs(r) < zero_threshold) {
+	//		if (abs(m) >= zero_threshold) {
+	//			mode = 2;
+	//			p = m;
+	//			q = T(0.);
+	//			//-a + e^(p t)(a + b t)
+	//			a[0] = -(1. + p) / (1. - exp(p) + p);
+	//			b[0] = -p / (-1. + exp(p) - p);
+	//			a[1] = -2. / (2. - 2. * exp(p) + exp(p) * p);
+	//			b[1] = p / (2. - 2. * exp(p) + exp(p) * p);
+	//		}
+	//		else {
+	//			mode = 3;
+	//			p = T(0.);
+	//			q = T(0.);
+	//			//a t + b t^2
+	//			a[0] = T(2.);
+	//			b[0] = T(-1.);
+	//			a[1] = T(0.);
+	//			b[1] = T(1.);
+	//		}
+	//	}
+	//	else
 	if (r > 0) {
 		mode = 0;
 		p = m + r;

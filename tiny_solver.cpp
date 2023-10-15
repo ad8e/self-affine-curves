@@ -20,9 +20,10 @@ int main(int argc, char* argv[]) {
 
 	//Eigen::Vector2d x(solution);
 	Eigen::Vector2d x(0, -pi / 2);
-	if (curvature0 < 0.5 && curvature1 > 0.5 || curvature0 > 0.5 && curvature1 < 0.5)
+	if (curvature0 < 0.5 && curvature1 > 0.5 || curvature0 > 0.5 && curvature1 < 0.5) {
 		//x = {pi / 2, pi / 2};
 		x = {0, -5 * pi / 2};
+	}
 	TinySolver<AutoDiffFunction> solver;
 	solver.options.max_num_iterations *= 10; //50 is too small. gets stuck. corresponding to summary.status == 3
 	solver.Solve(f, &x);
