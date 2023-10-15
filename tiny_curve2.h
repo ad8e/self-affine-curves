@@ -23,7 +23,7 @@ using std::numbers::pi;
 constexpr double zero_threshold = 1e-8; //arbitrary!
 
 template <typename T>
-Matrix<T, 2, 1> apply_curve(const Matrix<T, 2, 1>& a, const Matrix<T, 2, 1>& b, const T& p, const T& q, double t, int mode) {
+Matrix<T, 2, 1> apply_curve(const Matrix<T, 2, 1>& a, const Matrix<T, 2, 1>& b, const T& p, const T& q, int mode, double t) {
 	if (mode == 0) {
 		//(-a + b) + a e^(p t) + b e^(q t)
 		return a * (-1 + exp(p * t)) + b * (-1 + exp(q * t));
@@ -45,7 +45,7 @@ Matrix<T, 2, 1> apply_curve(const Matrix<T, 2, 1>& a, const Matrix<T, 2, 1>& b, 
 
 //returns dt, dt^2
 template <typename T>
-array<Matrix<T, 2, 1>, 2> differentials(const Matrix<T, 2, 1>& a, const Matrix<T, 2, 1>& b, const T& p, const T& q, double t, int mode) {
+array<Matrix<T, 2, 1>, 2> differentials(const Matrix<T, 2, 1>& a, const Matrix<T, 2, 1>& b, const T& p, const T& q, int mode, double t) {
 	Matrix<T, 2, 1> dt, dt2;
 	if (mode == 0) {
 		//(-a + b) + a e^(p t) + b e^(q t)
@@ -75,8 +75,8 @@ T curvature_from_differentials(Matrix<T, 2, 1>& dt, Matrix<T, 2, 1>& dt2) {
 }
 
 template <typename T>
-T calculate_curvatures(Matrix<T, 2, 1>& a, Matrix<T, 2, 1>& b, T& p, T& q, double t, int mode) {
-	auto [dt, dt2] = differentials(a, b, p, q, t, mode);
+T calculate_curvatures(Matrix<T, 2, 1>& a, Matrix<T, 2, 1>& b, T& p, T& q, int mode, double t) {
+	auto [dt, dt2] = differentials(a, b, p, q, mode, t);
 	//if constexpr (std::is_same_v<T, double>)
 	//	outc("differentials", dt[0], dt[1], dt2[0], dt2[1], "curvature", curvature_from_differentials(dt, dt2));
 	return curvature_from_differentials(dt, dt2);
@@ -154,24 +154,24 @@ template <typename T>
 void verify_correctness(const Matrix<T, 2, 1>& a, const Matrix<T, 2, 1>& b, const T& p, const T& q, int mode) {
 	//position at 0
 	{
-		auto distance = Matrix<T, 2, 1>{0, 0} - apply_curve(a, b, p, q, 0, mode);
+		auto distance = Matrix<T, 2, 1>{0, 0} - apply_curve(a, b, p, q, mode, 0);
 		check_warn(abs(distance[0]) < 0.0001, "x point at 0 failed", a, b, p, q, mode);
 		check_warn(abs(distance[1]) < 0.0001, "y point at 0 failed", a, b, p, q, mode);
 	}
 	//position at 1
 	{
-		auto distance = Matrix<T, 2, 1>{1, 1} - apply_curve(a, b, p, q, 1, mode);
+		auto distance = Matrix<T, 2, 1>{1, 1} - apply_curve(a, b, p, q, mode, 1);
 		check_warn(abs(distance[0]) < 0.0001, "x point at 1 failed", a, b, p, q, mode);
 		check_warn(abs(distance[1]) < 0.0001, "y point at 1 failed", a, b, p, q, mode);
 	}
 
 	//direction is 0
 	{
-		auto [dt, dt2] = differentials<double>(a, b, p, q, 1., mode);
+		auto [dt, dt2] = differentials<double>(a, b, p, q, mode, 1.);
 		check_warn(abs(dt[0]) < 0.0001, "x-derivative at 1 not zero", a, b, p, q, mode);
 	}
 	{
-		auto [dt, dt2] = differentials<double>(a, b, p, q, 0., mode);
+		auto [dt, dt2] = differentials<double>(a, b, p, q, mode, 0.);
 		check_warn(abs(dt[1]) < 0.0001, "y-derivative at 0 not zero", a, b, p, q, mode);
 	}
 }
@@ -190,8 +190,8 @@ struct MyFunctor {
 		const T& m = parameters[0];
 		const T& r = parameters[1];
 		auto [a, b, p, q, mode] = decompress(m, r);
-		T curvature0 = calculate_curvatures(a, b, p, q, 0, mode);
-		T curvature1 = calculate_curvatures(a, b, p, q, 1, mode);
+		T curvature0 = calculate_curvatures(a, b, p, q, mode, 0);
+		T curvature1 = calculate_curvatures(a, b, p, q, mode, 1);
 
 		residuals[0] = curvature0 - c1;
 		residuals[1] = curvature1 - c2;

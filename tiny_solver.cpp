@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
 
 	for (int i = 0; i <= 10; ++i) {
 		double t = i / 10.0;
-		auto result = apply_curve(a, b, p, q, t, mode);
+		auto result = apply_curve(a, b, p, q, mode, t);
 		outc(result[0], result[1]);
 	}
 
@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
 	for (int i = 0; i <= 10; ++i) {
 		double t = i / 10.0;
 		auto [a, b, p, q, mode] = decompress(0., -pi / 2);
-		auto result = apply_curve(a, b, p, q, t, mode);
+		auto result = apply_curve(a, b, p, q, mode, t);
 		outc(result[0], result[1]);
 	}
 

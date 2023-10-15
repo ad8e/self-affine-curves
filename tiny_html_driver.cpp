@@ -75,15 +75,15 @@ EMSCRIPTEN_KEEPALIVE void set_m_and_r_directly(double m, double r) {
 
 	auto [a, b, p, q, mode] = decompress(m, solution[1]);
 	verify_correctness(a, b, p, q, mode);
-	double curvature0 = calculate_curvatures(a, b, p, q, 0, mode);
-	double curvature1 = calculate_curvatures(a, b, p, q, 1, mode);
+	double curvature0 = calculate_curvatures(a, b, p, q, mode, 0);
+	double curvature1 = calculate_curvatures(a, b, p, q, mode, 1);
 	outc("curvatures", curvature0, curvature1);
 	outc("coef", a, b, "exp", p, q, mode);
 }
 
 EMSCRIPTEN_KEEPALIVE double get_x(double t) {
 	auto [a, b, p, q, mode] = decompress(solution[0], solution[1]);
-	Matrix<double, 2, 1> point = apply_curve(a, b, p, q, t, mode);
+	Matrix<double, 2, 1> point = apply_curve(a, b, p, q, mode, t);
 	y_too = point[1];
 	return point[0];
 }
